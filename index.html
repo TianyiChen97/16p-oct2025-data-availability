@@ -1,0 +1,706 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Data Availability — 16p11.2 uglia open-loop Oct 2025</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --surface-2: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --grid: #e1e0d9;
+    --border: rgba(11,11,11,0.10);
+    --series-1: #2a78d6;
+    --series-1-tint: #eaf2fc;
+    --series-1-tint-strong: #cde2fb;
+    --series-2: #eb6834;
+    --series-2-tint: #fdece4;
+    --series-2-tint-strong: #fbd7c4;
+    --missing-border: #c3c2b7;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--surface-2);
+    color: var(--text-primary);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --surface-2: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --grid: #2c2c2a;
+      --border: rgba(255,255,255,0.10);
+      --series-1: #3987e5;
+      --series-1-tint: #182634;
+      --series-1-tint-strong: #1c3552;
+      --series-2: #d95926;
+      --series-2-tint: #2c1e15;
+      --series-2-tint-strong: #402a19;
+      --missing-border: #383835;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--surface-2); color: var(--text-primary); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 20px 48px; }
+  h1 { font-size: 19px; font-weight: 650; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { font-size: 13px; color: var(--text-secondary); margin: 0 0 22px; line-height: 1.5; max-width: 76ch; }
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin-bottom: 18px; font-size: 12.5px; color: var(--text-secondary); }
+  .legend-item { display: flex; align-items: center; gap: 7px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .swatch.missing { background: transparent; border: 1.5px dashed var(--missing-border); }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 940px; font-size: 12.5px; }
+  thead th {
+    position: sticky; top: 0; background: var(--surface-1);
+    text-align: center; font-weight: 600; color: var(--text-secondary);
+    padding: 12px 6px 10px; border-bottom: 1px solid var(--grid);
+    white-space: nowrap;
+  }
+  thead th.corner { text-align: left; padding-left: 16px; color: var(--text-muted); font-weight: 500; }
+  thead th.group-label { font-size: 10px; color: var(--text-muted); font-weight: 500; padding: 4px 6px 2px; border-bottom: none; }
+  tbody th {
+    position: sticky; left: 0; background: var(--surface-1);
+    text-align: left; font-weight: 600; padding: 9px 14px; border-right: 1px solid var(--grid);
+    white-space: nowrap;
+  }
+  tbody th .chip-tag { display: block; font-weight: 500; font-size: 10.5px; color: var(--text-muted); font-family: ui-monospace, "SF Mono", Menlo, monospace; margin-top: 1px; }
+  tbody th .sex-tag { display: block; font-weight: 400; font-size: 10px; color: var(--text-muted); }
+  tbody tr { border-bottom: 1px solid var(--grid); }
+  tbody tr:last-child { border-bottom: none; }
+  td.cell { text-align: center; padding: 6px; vertical-align: middle; }
+  .entry {
+    border-radius: 7px; padding: 6px 5px; min-height: 40px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    cursor: default; position: relative;
+  }
+  .entry .folder { font-weight: 600; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; color: var(--text-primary); line-height: 1.2; }
+  .entry .count { font-size: 10px; color: var(--text-muted); }
+  .entry.g1 { background: var(--series-1-tint); }
+  .entry.g2 { background: var(--series-2-tint); }
+  .entry:hover.g1 { background: var(--series-1-tint-strong); }
+  .entry:hover.g2 { background: var(--series-2-tint-strong); }
+  .entry.missing { background: transparent; border: 1.5px dashed var(--missing-border); }
+  .entry.missing .folder { color: var(--text-muted); font-weight: 500; font-size: 10px; font-family: system-ui, sans-serif; }
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 50;
+    background: var(--text-primary); color: var(--surface-1);
+    font-size: 11.5px; line-height: 1.5; padding: 8px 10px; border-radius: 7px;
+    max-width: 420px; box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    opacity: 0; transform: translateY(2px); transition: opacity .1s ease, transform .1s ease;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .tooltip.show { opacity: 1; transform: translateY(0); }
+  .tooltip .path-root { color: var(--text-secondary); opacity: .7; }
+  .note { margin-top: 16px; font-size: 12px; color: var(--text-muted); line-height: 1.6; max-width: 76ch; }
+  .note + .note { margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>16p11.2 uglia open-loop Oct 2025 — data availability timeline</h1>
+  <p class="sub">One row per cell line / chip, one column per date. Hover a cell for the full path.
+  Blue = longitudinal time-course recording (Pattern A, data.raw.h5).
+  Orange = open-loop stimulation session (Pattern B, *.raw.h5 files).</p>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:var(--series-1)"></span>Time-course (data.raw.h5)</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--series-2)"></span>Open-loop session (*.raw.h5)</div>
+    <div class="legend-item"><span class="swatch missing"></span>No data present</div>
+  </div>
+
+  <div class="card">
+    <div class="scroll">
+      <table id="matrix"></table>
+    </div>
+  </div>
+
+  <p class="note">Time-course data from Misc_For_Dow/Run_10 (dates 250929, 251006, 251013 only; 251006_didnt_upload, 251017, 251020 excluded).</p>
+  <p class="note">Plate ID mapping source: Plate_ID_2025_Oct.png. Generated 2026-08-17 10:55.</p>
+
+  <h2 style="font-size:15px; font-weight:650; margin:36px 0 4px; letter-spacing:-0.01em;">Open-loop session recording order (single-well files)</h2>
+  <p class="sub">Example: cell line <strong>0753</strong> (M08914), session <strong>251007_Session_1_DA</strong><br>
+  Path: <code style="font-size:11.5px; color:var(--text-secondary);">caat:16p11.2_uglia_open_loop_Oct_2025/Week_1/251007_Session_1_DA/0753/</code><br>
+  Each file contains a single well. 12 files = 6 wells &times; 2 stimulus types (mgs, henon).
+  Well IDs verified via <code>h5ls &lt;file&gt;/wells</code>. ~5 min between recordings.</p>
+
+  <div class="card" style="max-width:780px;">
+    <div class="scroll">
+      <table style="min-width:auto;">
+        <thead>
+          <tr>
+            <th style="text-align:center; padding:10px 12px;">#</th>
+            <th style="text-align:center; padding:10px 12px;">Time</th>
+            <th style="text-align:left; padding:10px 12px;">Filename</th>
+            <th style="text-align:center; padding:10px 12px;">Well ID (h5)</th>
+            <th style="text-align:left; padding:10px 12px;">Condition</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="cell">1</td><td class="cell">11:32</td><td style="padding:6px 12px; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">20251007_1132_RC_mgs_control_1_2.raw.h5</td><td class="cell" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">well000</td><td style="padding:6px 12px;">mgs control</td></tr>
+          <tr><td class="cell">2</td><td class="cell">11:37</td><td style="padding:6px 12px; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">20251007_1137_RC_henon_control_1_2.raw.h5</td><td class="cell" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">well000</td><td style="padding:6px 12px;">henon control</td></tr>
+          <tr><td class="cell">3</td><td class="cell">11:43</td><td style="padding:6px 12px; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">20251007_1143_RC_mgs_train_1_2.raw.h5</td><td class="cell" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">well001</td><td style="padding:6px 12px;">mgs train</td></tr>
+          <tr><td class="cell">4</td><td class="cell">11:48</td><td style="padding:6px 12px; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">20251007_1148_RC_mgs_train_1_2.raw.h5</td><td class="cell" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">well002</td><td style="padding:6px 12px;">mgs train</td></tr>
+          <tr><td class="cell">5</td><td class="cell">11:53</td><td style="padding:6px 12px; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">20251007_1153_RC_mgs_train_1_2.raw.h5</td><td class="cell" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">well003</td><td style="padding:6px 12px;">mgs train</td></tr>
+          <tr><td class="cell">6</td><td class="cell">11:58</td><td style="padding:6px 12px; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">20251007_1158_RC_mgs_train_1_2.raw.h5</td><td class="cell" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">well004</td><td style="padding:6px 12px;">mgs train</td></tr>
+          <tr><td class="cell">7</td><td class="cell">12:04</td><td style="padding:6px 12px; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">20251007_1204_RC_mgs_train_1_2.raw.h5</td><td class="cell" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">well005</td><td style="padding:6px 12px;">mgs train</td></tr>
+          <tr><td class="cell">8</td><td class="cell">12:09</td><td style="padding:6px 12px; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">20251007_1209_RC_henon_train_1_2.raw.h5</td><td class="cell" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">well001</td><td style="padding:6px 12px;">henon train</td></tr>
+          <tr><td class="cell">9</td><td class="cell">12:14</td><td style="padding:6px 12px; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">20251007_1214_RC_henon_train_1_2.raw.h5</td><td class="cell" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">well002</td><td style="padding:6px 12px;">henon train</td></tr>
+          <tr><td class="cell">10</td><td class="cell">12:19</td><td style="padding:6px 12px; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">20251007_1219_RC_henon_train_1_2.raw.h5</td><td class="cell" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">well003</td><td style="padding:6px 12px;">henon train</td></tr>
+          <tr><td class="cell">11</td><td class="cell">12:24</td><td style="padding:6px 12px; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">20251007_1224_RC_henon_train_1_2.raw.h5</td><td class="cell" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">well004</td><td style="padding:6px 12px;">henon train</td></tr>
+          <tr><td class="cell">12</td><td class="cell">12:29</td><td style="padding:6px 12px; font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">20251007_1229_RC_henon_train_1_2.raw.h5</td><td class="cell" style="font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:11px;">well005</td><td style="padding:6px 12px;">henon train</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <p class="note">well000 = control well (receives both mgs and henon stimuli). wells 001–005 = train wells (each receives mgs first, then henon). Stimulus-type blocked: all mgs runs recorded first, then all henon runs in the same well order.</p>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const SRC_ROOT = "caat:16p11.2_uglia_open_loop_Oct_2025";
+
+const dates = [
+  {
+    "key": "2025-09-29",
+    "label": "Sep 29",
+    "group": "patternA",
+    "dateFolder": "250929"
+  },
+  {
+    "key": "2025-10-06",
+    "label": "Oct 06",
+    "group": "patternA",
+    "dateFolder": "251006"
+  },
+  {
+    "key": "2025-10-07|251007_Session_1_DA",
+    "label": "Oct 07",
+    "group": "patternB"
+  },
+  {
+    "key": "2025-10-08|251008_Session_2_DA",
+    "label": "Oct 08",
+    "group": "patternB"
+  },
+  {
+    "key": "2025-10-09|251009_Test_DA",
+    "label": "Oct 09",
+    "group": "patternB"
+  },
+  {
+    "key": "2025-10-13",
+    "label": "Oct 13",
+    "group": "patternA",
+    "dateFolder": "251013"
+  },
+  {
+    "key": "2025-10-14|251014_Session_1_DA",
+    "label": "Oct 14 (S1)",
+    "group": "patternB"
+  },
+  {
+    "key": "2025-10-14|251014_Session_2_DA",
+    "label": "Oct 14 (S2)",
+    "group": "patternB"
+  },
+  {
+    "key": "2025-10-16|251016_Test_1_DA",
+    "label": "Oct 16",
+    "group": "patternB"
+  }
+];
+
+const sessionByKey = {
+  "2025-10-07|251007_Session_1_DA": {
+    "folder": "251007_Session_1_DA",
+    "parent": "Week_1"
+  },
+  "2025-10-08|251008_Session_2_DA": {
+    "folder": "251008_Session_2_DA",
+    "parent": "Week_1"
+  },
+  "2025-10-09|251009_Test_DA": {
+    "folder": "251009_Test_DA",
+    "parent": "Week_1"
+  },
+  "2025-10-14|251014_Session_1_DA": {
+    "folder": "251014_Session_1_DA",
+    "parent": "Week_2"
+  },
+  "2025-10-14|251014_Session_2_DA": {
+    "folder": "251014_Session_2_DA",
+    "parent": "Week_2"
+  },
+  "2025-10-16|251016_Test_1_DA": {
+    "folder": "251016_Test_1_DA",
+    "parent": "Week_2"
+  }
+};
+
+const cellLines = [
+  {
+    "line": "0753",
+    "chip": "M08914",
+    "sex": "Female"
+  },
+  {
+    "line": "1442",
+    "chip": "M08449",
+    "sex": "Female"
+  },
+  {
+    "line": "1481",
+    "chip": "M08895",
+    "sex": "Female"
+  },
+  {
+    "line": "2295",
+    "chip": "M08903",
+    "sex": "Male"
+  },
+  {
+    "line": "2298",
+    "chip": "M08913",
+    "sex": "Male"
+  },
+  {
+    "line": "525",
+    "chip": "M08428",
+    "sex": "Male"
+  },
+  {
+    "line": "540",
+    "chip": "M08438",
+    "sex": "Female"
+  },
+  {
+    "line": "799",
+    "chip": "M08908",
+    "sex": "Female"
+  },
+  {
+    "line": "N8",
+    "chip": "M08899",
+    "sex": "Male"
+  }
+];
+
+const chipWellByDate = {
+  "M08913": {
+    "2025-09-29": "000070",
+    "2025-10-06": "000116",
+    "2025-10-13": "000135"
+  },
+  "M08895": {
+    "2025-09-29": "000080",
+    "2025-10-06": "000096",
+    "2025-10-13": "000160"
+  },
+  "M08899": {
+    "2025-09-29": "000072",
+    "2025-10-06": "000104",
+    "2025-10-13": "000148"
+  },
+  "M08449": {
+    "2025-09-29": "000078",
+    "2025-10-06": "000112",
+    "2025-10-13": "000139"
+  },
+  "M08428": {
+    "2025-09-29": "000076",
+    "2025-10-06": "000108",
+    "2025-10-13": "000124"
+  },
+  "M08908": {
+    "2025-09-29": "000084",
+    "2025-10-06": "000088",
+    "2025-10-13": "000156"
+  },
+  "M08438": {
+    "2025-09-29": "000082",
+    "2025-10-06": "000100",
+    "2025-10-13": "000152"
+  },
+  "M08914": {
+    "2025-09-29": "000086",
+    "2025-10-06": "000092",
+    "2025-10-13": "000144"
+  },
+  "M08903": {
+    "2025-09-29": "000074",
+    "2025-10-06": "000120",
+    "2025-10-13": "000131"
+  }
+};
+
+const patternBData = {
+  "799": {
+    "2025-10-07|251007_Session_1_DA": {
+      "session": "251007_Session_1_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-08|251008_Session_2_DA": {
+      "session": "251008_Session_2_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-09|251009_Test_DA": {
+      "session": "251009_Test_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_1_DA": {
+      "session": "251014_Session_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_2_DA": {
+      "session": "251014_Session_2_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-16|251016_Test_1_DA": {
+      "session": "251016_Test_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    }
+  },
+  "2295": {
+    "2025-10-07|251007_Session_1_DA": {
+      "session": "251007_Session_1_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-08|251008_Session_2_DA": {
+      "session": "251008_Session_2_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-09|251009_Test_DA": {
+      "session": "251009_Test_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_1_DA": {
+      "session": "251014_Session_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_2_DA": {
+      "session": "251014_Session_2_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-16|251016_Test_1_DA": {
+      "session": "251016_Test_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    }
+  },
+  "0753": {
+    "2025-10-07|251007_Session_1_DA": {
+      "session": "251007_Session_1_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-08|251008_Session_2_DA": {
+      "session": "251008_Session_2_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-09|251009_Test_DA": {
+      "session": "251009_Test_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_1_DA": {
+      "session": "251014_Session_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_2_DA": {
+      "session": "251014_Session_2_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-16|251016_Test_1_DA": {
+      "session": "251016_Test_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    }
+  },
+  "2298": {
+    "2025-10-07|251007_Session_1_DA": {
+      "session": "251007_Session_1_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-08|251008_Session_2_DA": {
+      "session": "251008_Session_2_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-09|251009_Test_DA": {
+      "session": "251009_Test_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_1_DA": {
+      "session": "251014_Session_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_2_DA": {
+      "session": "251014_Session_2_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-16|251016_Test_1_DA": {
+      "session": "251016_Test_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    }
+  },
+  "1481": {
+    "2025-10-07|251007_Session_1_DA": {
+      "session": "251007_Session_1_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-08|251008_Session_2_DA": {
+      "session": "251008_Session_2_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-09|251009_Test_DA": {
+      "session": "251009_Test_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_1_DA": {
+      "session": "251014_Session_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_2_DA": {
+      "session": "251014_Session_2_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-16|251016_Test_1_DA": {
+      "session": "251016_Test_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    }
+  },
+  "525": {
+    "2025-10-07|251007_Session_1_DA": {
+      "session": "251007_Session_1_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-08|251008_Session_2_DA": {
+      "session": "251008_Session_2_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-09|251009_Test_DA": {
+      "session": "251009_Test_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_1_DA": {
+      "session": "251014_Session_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_2_DA": {
+      "session": "251014_Session_2_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-16|251016_Test_1_DA": {
+      "session": "251016_Test_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    }
+  },
+  "N8": {
+    "2025-10-07|251007_Session_1_DA": {
+      "session": "251007_Session_1_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-08|251008_Session_2_DA": {
+      "session": "251008_Session_2_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-09|251009_Test_DA": {
+      "session": "251009_Test_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_1_DA": {
+      "session": "251014_Session_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-16|251016_Test_1_DA": {
+      "session": "251016_Test_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    }
+  },
+  "540": {
+    "2025-10-07|251007_Session_1_DA": {
+      "session": "251007_Session_1_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-08|251008_Session_2_DA": {
+      "session": "251008_Session_2_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-09|251009_Test_DA": {
+      "session": "251009_Test_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_1_DA": {
+      "session": "251014_Session_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_2_DA": {
+      "session": "251014_Session_2_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-16|251016_Test_1_DA": {
+      "session": "251016_Test_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    }
+  },
+  "1442": {
+    "2025-10-07|251007_Session_1_DA": {
+      "session": "251007_Session_1_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-08|251008_Session_2_DA": {
+      "session": "251008_Session_2_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-09|251009_Test_DA": {
+      "session": "251009_Test_DA",
+      "week": "Week_1",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_1_DA": {
+      "session": "251014_Session_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-14|251014_Session_2_DA": {
+      "session": "251014_Session_2_DA",
+      "week": "Week_2",
+      "file_count": 12
+    },
+    "2025-10-16|251016_Test_1_DA": {
+      "session": "251016_Test_1_DA",
+      "week": "Week_2",
+      "file_count": 12
+    }
+  }
+};
+
+function buildTable() {
+  const table = document.getElementById("matrix");
+  const thead = document.createElement("thead");
+  const htr = document.createElement("tr");
+  htr.innerHTML = `<th class="corner">Cell line</th>` + dates.map(d => `<th>${d.label}</th>`).join("");
+  thead.appendChild(htr);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+
+  function makeCell(content) {
+    const td = document.createElement("td");
+    td.className = "cell";
+    td.appendChild(content);
+    return td;
+  }
+
+  function filledEntry(groupClass, folder, count, fullpath) {
+    const div = document.createElement("div");
+    div.className = `entry ${groupClass}`;
+    div.innerHTML = `<span class="folder">${folder}</span>` +
+      (count ? `<span class="count">${count} files</span>` : "");
+    div.addEventListener("mousemove", (e) => showTooltip(e, fullpath));
+    div.addEventListener("mouseleave", hideTooltip);
+    return div;
+  }
+
+  function missingEntry(msg) {
+    const div = document.createElement("div");
+    div.className = "entry missing";
+    div.innerHTML = `<span class="folder">${msg || "missing"}</span>`;
+    return div;
+  }
+
+  cellLines.forEach(({line, chip, sex}) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<th>${line}<span class="chip-tag">${chip}</span><span class="sex-tag">${sex}</span></th>`;
+    dates.forEach(d => {
+      if (d.group === "patternA") {
+        const well = chipWellByDate[chip] && chipWellByDate[chip][d.key];
+        if (well) {
+          const fullpath = `${SRC_ROOT}/Misc_For_Dow/Run_10/${d.dateFolder}/${chip}/Network/${well}/data.raw.h5`;
+          tr.appendChild(makeCell(filledEntry("g1", well, null, fullpath)));
+        } else {
+          tr.appendChild(makeCell(missingEntry("missing")));
+        }
+      } else if (d.group === "patternB") {
+        const sess = sessionByKey[d.key];
+        const bdata = patternBData[line] && patternBData[line][d.key];
+        if (bdata) {
+          const fullpath = `${SRC_ROOT}/${sess.parent}/${sess.folder}/${line}/`;
+          tr.appendChild(makeCell(filledEntry("g2", sess.folder.split("_").slice(0,2).join("_"), bdata.file_count, fullpath)));
+        } else {
+          tr.appendChild(makeCell(missingEntry("not recorded")));
+        }
+      }
+    });
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+}
+
+const tooltip = document.getElementById("tooltip");
+function showTooltip(e, fullpath) {
+  tooltip.innerHTML = `<span class="path-root">${fullpath}</span>`;
+  tooltip.classList.add("show");
+  const x = e.clientX, y = e.clientY;
+  const vw = window.innerWidth;
+  tooltip.style.left = Math.min(x + 14, vw - 440) + "px";
+  tooltip.style.top = (y + 16) + "px";
+}
+function hideTooltip() { tooltip.classList.remove("show"); }
+
+buildTable();
+</script>
+</body>
+</html>
